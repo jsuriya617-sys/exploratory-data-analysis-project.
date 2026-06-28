@@ -1,0 +1,65 @@
+"""
+data_loader.py — Load & validate datasets for EDA
+"""
+
+import pandas as pd
+import numpy as np
+import os
+
+
+def load_csv(filepath):
+    """Load a CSV file with basic validation."""
+    if not os.path.exists(filepath):
+        raise FileNotFoundError(f"File not found: {filepath}")
+    df = pd.read_csv(filepath)
+    print(f"✅ Loaded '{filepath}': {df.shape[0]} rows × {df.shape[1]} cols")
+    return df
+
+
+def load_excel(filepath, sheet_name=0):
+    """Load an Excel file."""
+    df = pd.read_excel(filepath, sheet_name=sheet_name)
+    print(f"✅ Loaded Excel '{filepath}': {df.shape[0]} rows × {df.shape[1]} cols")
+    return df
+
+
+def generate_sample_data(n=500, seed=42):
+    """
+    Generate synthetic employee/HR dataset for demo EDA.
+    Returns a pandas DataFrame.
+    """
+    np.random.seed(seed)
+    df = pd.DataFrame({
+        'employee_id': range(1001, 1001 + n),
+        'age':          np.random.randint(22, 60, n),
+        'salary':       np.random.normal(55000, 18000, n).round(2),
+        'experience':   np.random.randint(0, 35, n),
+        'score':        np.random.uniform(40, 100, n).round(1),
+        'joined_year':  np.random.randint(2000, 2024, n),
+        'department':   np.random.choice(['HR', 'IT', 'Sales', 'Finance', 'Marketing'], n),
+        'gender':       np.random.choice(['Male', 'Female'], n),
+        'city':         np.random.choice(['Chennai', 'Bangalore', 'Mumbai', 'Delhi', 'Hyderabad'], n),
+        'promoted':     np.random.choice([0, 1], n, p=[0.7, 0.3]),
+    })
+    # Inject realistic missing values
+    for col, count in [('salary', 25), ('score', 15), ('city', 10)]:
+        df.loc[np.random.choice(df.index, count, replace=False), col] = np.nan
+    # Inject a few outliers
+    df.loc[df.sample(5).index, 'salary'] = np.random.uniform(200000, 300000, 5).round(2)
+    print(f"✅ Generated synthetic dataset: {df.shape[0]} rows × {df.shape[1]} cols")
+    return df
+
+
+def validate_dataframe(df):
+    """Print a quick validation summary."""
+    print("\n── Validation Summary ──────────────────────────")
+    print(f"  Rows         : {df.shape[0]}")
+    print(f"  Columns      : {df.shape[1]}")
+    print(f"  Missing Total: {df.isnull().sum().sum()}")
+    print(f"  Duplicates   : {df.duplicated().sum()}")
+    num = df.select_dtypes(include='number').columns.tolist()
+    cat = df.select_dtypes(include='object').columns.tolist()
+    print(f"  Numeric cols : {num}")
+    print(f"  String cols  : {cat}")
+    print("────────────────────────────────────────────────\n")
+    return df
