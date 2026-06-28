@@ -1,0 +1,98 @@
+"""
+stats_tests.py — Statistical tests for EDA
+"""
+
+import pandas as pd
+import numpy as np
+from scipy import stats
+
+
+def normality_shapiro(df, cols=None, sample_size=200, alpha=0.05):
+    """
+    Shapiro-Wilk normality test for each numeric column.
+    Uses a random sample when n > sample_size.
+    """
+    num_cols = cols or df.select_dtypes(include='number').columns.tolist()
+    print("\n── Shapiro-Wilk Normality Test ─────────────────────────")
+    print(f"  Alpha = {alpha}  |  Sample size = {sample_size}")
+    print(f"  {'Column':<18} {'W-stat':>8} {'p-value':>10} {'Result'}")
+    print("  " + "-" * 50)
+    results = []
+    for col in num_cols:
+        data = df[col].dropna()
+        sample = data.sample(min(sample_size, len(data)), random_state=42)
+        w, p = stats.shapiro(sample)
+        is_normal = p > alpha
+        tag = "Normal ✅" if is_normal else "Non-Normal ❌"
+        print(f"  {col:<18} {w:>8.4f} {p:>10.4f}   {tag}")
+        results.append({'column': col, 'W': w, 'p_value': p, 'normal': is_normal})
+    return pd.DataFrame(results)
+
+
+def t_test_two_groups(df, num_col, cat_col, group1, group2, alpha=0.05):
+    """
+    Independent samples t-test between two groups.
+    Example: t_test_two_groups(df, 'salary', 'gender', 'Male', 'Female')
+    """
+    a = df[df[cat_col] == group1][num_col].dropna()
+    b = df[df[cat_col] == group2][num_col].dropna()
+    t_stat, p = stats.ttest_ind(a, b)
+    print(f"\n── T-Test: {num_col} | {cat_col}: '{group1}' vs '{group2}' ──")
+    print(f"  Mean {group1}: {a.mean():.2f}  |  Mean {group2}: {b.mean():.2f}")
+    print(f"  t = {t_stat:.4f},  p = {p:.4f}")
+    if p < alpha:
+        print(f"  ✅ Significant difference (p < {alpha})")
+    else:
+        print(f"  ❌ No significant difference (p ≥ {alpha})")
+    return t_stat, p
+
+
+def anova_test(df, num_col, cat_col, alpha=0.05):
+    """
+    One-way ANOVA across all groups of a categorical column.
+    Example: anova_test(df, 'salary', 'department')
+    """
+    groups = [df[df[cat_col] == g][num_col].dropna()
+              for g in df[cat_col].unique()]
+    f_stat, p = stats.f_oneway(*groups)
+    print(f"\n── ANOVA: {num_col} by {cat_col} ──")
+    for g in df[cat_col].unique():
+        mean = df[df[cat_col] == g][num_col].mean()
+        print(f"  {g}: mean = {mean:.2f}")
+    print(f"  F = {f_stat:.4f},  p = {p:.4f}")
+    if p < alpha:
+        print(f"  ✅ At least one group differs significantly (p < {alpha})")
+    else:
+        print(f"  ❌ No significant difference between groups (p ≥ {alpha})")
+    return f_stat, p
+
+
+def chi_square_test(df, col1, col2, alpha=0.05):
+    """
+    Chi-square test of independence between two categorical columns.
+    """
+    ct = pd.crosstab(df[col1], df[col2])
+    chi2, p, dof, expected = stats.chi2_contingency(ct)
+    print(f"\n── Chi-Square: {col1} vs {col2} ──")
+    print(f"  Chi² = {chi2:.4f},  df = {dof},  p = {p:.4f}")
+    if p < alpha:
+        print(f"  ✅ Significant association found (p < {alpha})")
+    else:
+        print(f"  ❌ No significant association (p ≥ {alpha})")
+    return chi2, p
+
+
+def outlier_zscore(df, cols=None, threshold=3):
+    """
+    Z-score method outlier detection.
+    Returns a summary DataFrame.
+    """
+    num_cols = cols or df.select_dtypes(include='number').columns.tolist()
+    print(f"\n── Z-Score Outliers (|z| > {threshold}) ─────────────────")
+    rows = []
+    for col in num_cols:
+        z = np.abs(stats.zscore(df[col].dropna()))
+        count = (z > threshold).sum()
+        print(f"  {col:<18}: {count} outliers")
+        rows.append({'column': col, 'outlier_count': count})
+    return pd.DataFrame(rows)
