@@ -1,0 +1,241 @@
+"""
+Exploratory Data Analysis (EDA) - Main Analysis Script
+======================================================
+Dataset: Sample Sales Data (auto-generated)
+Author: Suriya
+"""
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy import stats
+import warnings
+warnings.filterwarnings('ignore')
+
+# ── 1. LOAD DATA ──────────────────────────────────────────────────────────────
+
+def load_data(filepath=None):
+    """Load dataset. Uses synthetic data if no filepath given."""
+    if filepath:
+        df = pd.read_csv(filepath)
+    else:
+        np.random.seed(42)
+        n = 500
+        df = pd.DataFrame({
+            'age':        np.random.randint(18, 65, n),
+            'salary':     np.random.normal(50000, 15000, n).round(2),
+            'experience': np.random.randint(0, 40, n),
+            'department': np.random.choice(['HR', 'Sales', 'IT', 'Finance', 'Marketing'], n),
+            'gender':     np.random.choice(['Male', 'Female'], n),
+            'score':      np.random.uniform(40, 100, n).round(1),
+            'joined_year':np.random.randint(2000, 2024, n),
+        })
+        # Inject some missing values
+        df.loc[np.random.choice(df.index, 20), 'salary'] = np.nan
+        df.loc[np.random.choice(df.index, 10), 'score']  = np.nan
+    return df
+
+
+# ── 2. BASIC INFO ─────────────────────────────────────────────────────────────
+
+def basic_info(df):
+    print("=" * 60)
+    print("DATASET OVERVIEW")
+    print("=" * 60)
+    print(f"\nShape        : {df.shape[0]} rows × {df.shape[1]} columns")
+    print(f"\nColumn Types :\n{df.dtypes}")
+    print(f"\nMissing Values :\n{df.isnull().sum()}")
+    print(f"\nDuplicate Rows : {df.duplicated().sum()}")
+    print(f"\nFirst 5 Rows :\n{df.head()}")
+
+
+# ── 3. DESCRIPTIVE STATISTICS ─────────────────────────────────────────────────
+
+def descriptive_stats(df):
+    print("\n" + "=" * 60)
+    print("DESCRIPTIVE STATISTICS")
+    print("=" * 60)
+    num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+    cat_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
+
+    print(f"\nNumerical Columns : {num_cols}")
+    print(df[num_cols].describe().round(2))
+
+    print(f"\nCategorical Columns : {cat_cols}")
+    for col in cat_cols:
+        print(f"\n  {col} value counts:")
+        print(df[col].value_counts())
+
+
+# ── 4. MISSING VALUE HANDLING ─────────────────────────────────────────────────
+
+def handle_missing(df):
+    print("\n" + "=" * 60)
+    print("MISSING VALUE TREATMENT")
+    print("=" * 60)
+    before = df.isnull().sum().sum()
+    num_cols = df.select_dtypes(include=[np.number]).columns
+    for col in num_cols:
+        if df[col].isnull().any():
+            median_val = df[col].median()
+            df[col].fillna(median_val, inplace=True)
+            print(f"  Filled '{col}' missing values with median = {median_val:.2f}")
+    after = df.isnull().sum().sum()
+    print(f"\n  Missing values: {before} → {after}")
+    return df
+
+
+# ── 5. OUTLIER DETECTION ──────────────────────────────────────────────────────
+
+def detect_outliers(df):
+    print("\n" + "=" * 60)
+    print("OUTLIER DETECTION (IQR Method)")
+    print("=" * 60)
+    num_cols = df.select_dtypes(include=[np.number]).columns
+    for col in num_cols:
+        Q1 = df[col].quantile(0.25)
+        Q3 = df[col].quantile(0.75)
+        IQR = Q3 - Q1
+        lower = Q1 - 1.5 * IQR
+        upper = Q3 + 1.5 * IQR
+        outliers = df[(df[col] < lower) | (df[col] > upper)]
+        print(f"  {col:15s}: {len(outliers):3d} outliers  "
+              f"[bounds: {lower:.2f} – {upper:.2f}]")
+
+
+# ── 6. CORRELATION ANALYSIS ───────────────────────────────────────────────────
+
+def correlation_analysis(df):
+    print("\n" + "=" * 60)
+    print("CORRELATION MATRIX (Top Pairs)")
+    print("=" * 60)
+    num_cols = df.select_dtypes(include=[np.number]).columns
+    corr = df[num_cols].corr()
+    pairs = (
+        corr.where(np.triu(np.ones(corr.shape), k=1).astype(bool))
+            .stack()
+            .reset_index()
+    )
+    pairs.columns = ['Feature 1', 'Feature 2', 'Correlation']
+    pairs['abs'] = pairs['Correlation'].abs()
+    print(pairs.sort_values('abs', ascending=False).drop('abs', axis=1).to_string(index=False))
+    return corr
+
+
+# ── 7. VISUALIZATIONS ─────────────────────────────────────────────────────────
+
+def plot_all(df, corr):
+    num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+    cat_cols = df.select_dtypes(include=['object']).columns.tolist()
+
+    plt.rcParams.update({'figure.dpi': 120, 'font.size': 10})
+    fig = plt.figure(figsize=(20, 22))
+    fig.suptitle('Exploratory Data Analysis Report', fontsize=18, fontweight='bold', y=0.98)
+
+    total_plots = len(num_cols) * 2 + len(cat_cols) + 1 + 1  # hist+box + bar + corr + pairplot_placeholder
+    cols = 4
+    rows = (total_plots // cols) + 2
+    idx = 1
+
+    # Histograms
+    for col in num_cols:
+        ax = fig.add_subplot(rows, cols, idx)
+        ax.hist(df[col].dropna(), bins=25, color='steelblue', edgecolor='white', alpha=0.85)
+        ax.set_title(f'{col} – Distribution', fontweight='bold')
+        ax.set_xlabel(col); ax.set_ylabel('Frequency')
+        idx += 1
+
+    # Boxplots
+    for col in num_cols:
+        ax = fig.add_subplot(rows, cols, idx)
+        ax.boxplot(df[col].dropna(), patch_artist=True,
+                   boxprops=dict(facecolor='#6BAED6', color='navy'),
+                   medianprops=dict(color='red', linewidth=2))
+        ax.set_title(f'{col} – Boxplot', fontweight='bold')
+        ax.set_ylabel(col)
+        idx += 1
+
+    # Bar charts for categorical
+    for col in cat_cols:
+        ax = fig.add_subplot(rows, cols, idx)
+        counts = df[col].value_counts()
+        ax.bar(counts.index, counts.values, color='#74C476', edgecolor='white')
+        ax.set_title(f'{col} – Frequency', fontweight='bold')
+        ax.set_xlabel(col); ax.set_ylabel('Count')
+        plt.setp(ax.xaxis.get_majorticklabels(), rotation=30, ha='right')
+        idx += 1
+
+    # Correlation Heatmap
+    ax = fig.add_subplot(rows, cols, idx)
+    mask = np.triu(np.ones_like(corr, dtype=bool))
+    sns.heatmap(corr, ax=ax, annot=True, fmt='.2f', cmap='coolwarm',
+                mask=mask, linewidths=0.5, cbar_kws={'shrink': 0.8})
+    ax.set_title('Correlation Heatmap', fontweight='bold')
+    idx += 1
+
+    # Salary by Department (if columns exist)
+    if 'salary' in df.columns and 'department' in df.columns:
+        ax = fig.add_subplot(rows, cols, idx)
+        dept_salary = df.groupby('department')['salary'].mean().sort_values()
+        ax.barh(dept_salary.index, dept_salary.values, color='#FD8D3C')
+        ax.set_title('Avg Salary by Department', fontweight='bold')
+        ax.set_xlabel('Average Salary')
+        idx += 1
+
+    plt.tight_layout(rect=[0, 0, 1, 0.97])
+    out_path = 'eda_report.png'
+    plt.savefig(out_path, bbox_inches='tight')
+    print(f"\n  ✅ Plot saved → {out_path}")
+    plt.show()
+
+
+# ── 8. NORMALITY TEST ─────────────────────────────────────────────────────────
+
+def normality_test(df):
+    print("\n" + "=" * 60)
+    print("NORMALITY TEST (Shapiro-Wilk, sample=200)")
+    print("=" * 60)
+    num_cols = df.select_dtypes(include=[np.number]).columns
+    for col in num_cols:
+        sample = df[col].dropna().sample(min(200, len(df)), random_state=42)
+        stat, p = stats.shapiro(sample)
+        result = "Normal ✅" if p > 0.05 else "Not Normal ❌"
+        print(f"  {col:15s}: W={stat:.4f}, p={p:.4f}  →  {result}")
+
+
+# ── 9. FEATURE ENGINEERING ────────────────────────────────────────────────────
+
+def feature_engineering(df):
+    print("\n" + "=" * 60)
+    print("FEATURE ENGINEERING")
+    print("=" * 60)
+    if 'salary' in df.columns:
+        df['salary_log'] = np.log1p(df['salary'])
+        print("  Created: salary_log  (log-transformed salary)")
+    if 'age' in df.columns and 'joined_year' in df.columns:
+        df['tenure'] = df['joined_year'].max() - df['joined_year']
+        print("  Created: tenure  (years since joining)")
+    if 'score' in df.columns:
+        df['score_grade'] = pd.cut(df['score'], bins=[0,50,70,85,100],
+                                   labels=['Poor','Average','Good','Excellent'])
+        print("  Created: score_grade  (binned score category)")
+    return df
+
+
+# ── MAIN ──────────────────────────────────────────────────────────────────────
+
+if __name__ == "__main__":
+    print("\n🔍 Starting Exploratory Data Analysis...\n")
+
+    df = load_data()                   # Step 1: Load
+    basic_info(df)                     # Step 2: Basic Info
+    descriptive_stats(df)              # Step 3: Statistics
+    df = handle_missing(df)            # Step 4: Missing Values
+    detect_outliers(df)                # Step 5: Outliers
+    corr = correlation_analysis(df)    # Step 6: Correlation
+    normality_test(df)                 # Step 7: Normality
+    df = feature_engineering(df)       # Step 8: Feature Engineering
+    plot_all(df, corr)                 # Step 9: Visualizations
+
+    print("\n✅ EDA Complete! Output saved to eda_report.png\n")
