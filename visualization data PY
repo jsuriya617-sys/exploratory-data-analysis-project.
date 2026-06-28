@@ -1,0 +1,131 @@
+"""
+visualizations.py — Reusable plotting functions for EDA
+"""
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+
+def set_style():
+    """Apply consistent plot style."""
+    plt.rcParams.update({
+        'figure.dpi':     120,
+        'font.size':      10,
+        'axes.spines.top':    False,
+        'axes.spines.right':  False,
+        'axes.grid':      True,
+        'grid.alpha':     0.3,
+    })
+    sns.set_palette("Set2")
+
+
+def plot_distributions(df, cols=None, figsize=(16, 4)):
+    """Histogram + KDE for all numeric columns."""
+    set_style()
+    num_cols = cols or df.select_dtypes(include='number').columns.tolist()
+    fig, axes = plt.subplots(1, len(num_cols), figsize=figsize)
+    if len(num_cols) == 1:
+        axes = [axes]
+    for ax, col in zip(axes, num_cols):
+        df[col].dropna().plot.hist(ax=ax, bins=25, color='steelblue',
+                                   edgecolor='white', alpha=0.8, density=True)
+        df[col].dropna().plot.kde(ax=ax, color='navy', linewidth=1.5)
+        ax.set_title(f'{col}', fontweight='bold')
+        ax.set_xlabel(col)
+    plt.suptitle('Distributions (Histogram + KDE)', fontweight='bold', y=1.02)
+    plt.tight_layout()
+    plt.savefig('plot_distributions.png', bbox_inches='tight')
+    plt.show()
+    print("  Saved → plot_distributions.png")
+
+
+def plot_boxplots(df, cols=None, figsize=(16, 4)):
+    """Boxplots for numeric columns to spot outliers."""
+    set_style()
+    num_cols = cols or df.select_dtypes(include='number').columns.tolist()
+    fig, axes = plt.subplots(1, len(num_cols), figsize=figsize)
+    if len(num_cols) == 1:
+        axes = [axes]
+    colors = sns.color_palette("Set2", len(num_cols))
+    for ax, col, color in zip(axes, num_cols, colors):
+        ax.boxplot(df[col].dropna(), patch_artist=True,
+                   boxprops=dict(facecolor=color, alpha=0.7),
+                   medianprops=dict(color='red', linewidth=2),
+                   whiskerprops=dict(linewidth=1.2),
+                   flierprops=dict(marker='o', markersize=4, alpha=0.4))
+        ax.set_title(f'{col}', fontweight='bold')
+        ax.set_ylabel(col)
+    plt.suptitle('Boxplots — Outlier Detection', fontweight='bold', y=1.02)
+    plt.tight_layout()
+    plt.savefig('plot_boxplots.png', bbox_inches='tight')
+    plt.show()
+    print("  Saved → plot_boxplots.png")
+
+
+def plot_correlation_heatmap(df, figsize=(8, 6)):
+    """Correlation heatmap for numeric features."""
+    set_style()
+    num_cols = df.select_dtypes(include='number').columns
+    corr = df[num_cols].corr()
+    mask = np.triu(np.ones_like(corr, dtype=bool))
+    fig, ax = plt.subplots(figsize=figsize)
+    sns.heatmap(corr, ax=ax, mask=mask, annot=True, fmt='.2f',
+                cmap='coolwarm', linewidths=0.5,
+                cbar_kws={'shrink': 0.8}, vmin=-1, vmax=1)
+    ax.set_title('Correlation Matrix', fontweight='bold', fontsize=13)
+    plt.tight_layout()
+    plt.savefig('plot_correlation.png', bbox_inches='tight')
+    plt.show()
+    print("  Saved → plot_correlation.png")
+    return corr
+
+
+def plot_categorical(df, cols=None, figsize=(16, 4)):
+    """Bar charts for categorical columns."""
+    set_style()
+    cat_cols = cols or df.select_dtypes(include='object').columns.tolist()
+    if not cat_cols:
+        print("  No categorical columns found.")
+        return
+    fig, axes = plt.subplots(1, len(cat_cols), figsize=figsize)
+    if len(cat_cols) == 1:
+        axes = [axes]
+    colors = sns.color_palette("Pastel1", len(cat_cols))
+    for ax, col, color in zip(axes, cat_cols, colors):
+        counts = df[col].value_counts()
+        ax.bar(counts.index, counts.values, color=color, edgecolor='grey', linewidth=0.5)
+        ax.set_title(f'{col}', fontweight='bold')
+        ax.set_xlabel(col); ax.set_ylabel('Count')
+        plt.setp(ax.xaxis.get_majorticklabels(), rotation=30, ha='right')
+    plt.suptitle('Categorical Column Frequencies', fontweight='bold', y=1.02)
+    plt.tight_layout()
+    plt.savefig('plot_categorical.png', bbox_inches='tight')
+    plt.show()
+    print("  Saved → plot_categorical.png")
+
+
+def plot_pairplot(df, hue=None, cols=None):
+    """Seaborn pairplot for selected numeric columns."""
+    num_cols = cols or df.select_dtypes(include='number').columns.tolist()[:4]
+    subset = df[num_cols + ([hue] if hue else [])].dropna()
+    g = sns.pairplot(subset, hue=hue, diag_kind='kde',
+                     plot_kws={'alpha': 0.5, 's': 20})
+    g.fig.suptitle('Pairplot', y=1.01, fontweight='bold')
+    plt.savefig('plot_pairplot.png', bbox_inches='tight')
+    plt.show()
+    print("  Saved → plot_pairplot.png")
+
+
+def plot_missing_heatmap(df, figsize=(10, 4)):
+    """Visualise missing value pattern across the dataset."""
+    set_style()
+    fig, ax = plt.subplots(figsize=figsize)
+    sns.heatmap(df.isnull(), ax=ax, cbar=False,
+                yticklabels=False, cmap='viridis')
+    ax.set_title('Missing Value Map  (yellow = missing)', fontweight='bold')
+    plt.tight_layout()
+    plt.savefig('plot_missing.png', bbox_inches='tight')
+    plt.show()
+    print("  Saved → plot_missing.png")
