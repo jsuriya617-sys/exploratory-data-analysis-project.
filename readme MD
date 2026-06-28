@@ -1,0 +1,65 @@
+# Exploratory Data Analysis (EDA) Project
+
+A clean, modular Python project for performing end-to-end EDA on any tabular dataset.
+
+## 📁 Project Structure
+
+```
+eda_project/
+├── eda_analysis.py      ← Main script (run this)
+├── data_loader.py       ← Load CSV / Excel / synthetic data
+├── visualizations.py    ← All plotting functions
+├── stats_tests.py       ← Normality, T-test, ANOVA, Chi-square
+├── requirements.txt     ← Dependencies
+└── README.md
+```
+
+## 🚀 Quick Start
+
+```bash
+# 1. Install dependencies
+pip install -r requirements.txt
+
+# 2. Run the full EDA pipeline
+python eda_analysis.py
+```
+
+## 📦 What It Does
+
+| Step | Task |
+|------|------|
+| 1 | Load dataset (CSV / Excel / synthetic) |
+| 2 | Basic info — shape, dtypes, duplicates |
+| 3 | Descriptive statistics |
+| 4 | Missing value handling (median fill) |
+| 5 | Outlier detection (IQR + Z-score) |
+| 6 | Correlation matrix |
+| 7 | Normality test (Shapiro-Wilk) |
+| 8 | Feature engineering |
+| 9 | Visualizations → saved as PNG |
+
+## 🔧 Use Your Own Dataset
+
+```python
+# In eda_analysis.py, change:
+df = load_data()                    # synthetic data
+# to:
+df = load_data("your_file.csv")    # your CSV
+```
+
+## 📊 Outputs
+
+- `eda_report.png` — Full visual dashboard
+- `plot_distributions.png`
+- `plot_boxplots.png`
+- `plot_correlation.png`
+- `plot_categorical.png`
+- `plot_missing.png`
+
+## 📚 Libraries Used
+
+- `pandas` — Data manipulation
+- `numpy` — Numerical operations
+- `matplotlib` — Plotting
+- `seaborn` — Statistical visualizations
+- `scipy` — Statistical tests
